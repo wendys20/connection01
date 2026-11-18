@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>交流共育 · 家长议题揭榜讨论</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        primaryDark:'#0E42C2',
+                        softBlue: '#F2F7FF',
+                        bubbleBg: '#F7FAFF',
+                        danger:'#F53F3F'
+                    },
+                    fontFamily: {
+                        sans: ['system-ui', '-apple-system', 'PingFang SC', 'Microsoft YaHei', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .card-shadow { box-shadow: 0 8px 24px rgba(22, 93, 255, 0.08); }
+            .header-shadow { box-shadow: 0 2px 12px rgba(22, 93, 255, 0.15); }
+            .bubble-shadow{ box-shadow:0 1px 4px rgba(0,0,0,0.05); }
+        }
+        body { background: linear-gradient(180deg, #f8fafc 0%, #edf2fa 100%); }
+    </style>
+</head>
+<body class="font-sans pb-16">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <div class="relative overflow-hidden rounded-2xl card-shadow mb-8">
+            <div class="bg-gradient-to-r from-primary to-primaryDark rounded-2xl p-7 text-white header-shadow">
+                <div class="text-center">
+                    <i class="fa fa-trophy text-4xl opacity-90 mb-3"></i>
+                    <h1 class="text-[24px] font-bold tracking-wide">交流共育 · 家长议题揭榜</h1>
+                    <p class="mt-3 text-sm opacity-90 leading-relaxed">📌匿名交流｜仅展示留言内容，不显示发言者个人信息</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl card-shadow p-4 mb-7">
+            <div class="flex flex-wrap gap-2 items-center">
+                <span class="text-sm text-slate-600">🔐管理员模式：</span>
+                <input id="adminPwdInput" type="password" placeholder="输入管理员密码" class="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1 min-w-[140px]">
+                <button onclick="loginAdmin()" class="bg-primary text-white px-3 py-2 rounded-lg text-sm">登录管理</button>
+                <button onclick="logoutAdmin()" class="bg-slate-400 text-white px-3 py-2 rounded-lg text-sm">退出</button>
+            </div>
+            <div id="adminTip" class="mt-2 text-xs text-slate-400">登录后可以删除留言</div>
+        </div>
+        <div id="topicWrap" class="space-y-7"></div>
+        <div class="mt-10 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <p class="text-sm text-amber-700 mb-2">🔧管理员工具</p>
+            <button onclick="clearAllData()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm transition">清空全部留言</button>
+            <p class="text-xs mt-1 text-amber-600">⚠️全部清除，不可恢复</p>
+        </div>
+    </div>
+
+    <script>
+        let isAdmin = false;
+        let adminPwdCache = "";
+        const ADMIN_PASSWORD = "123456"; //在这里改管理员密码
+
+        const topicList = [
+            {id:1,title:"1. 手机与周末时间怎么管",desc:"手机到底该不该给孩子？回家、周日怎样安排手机，既能管控又不过度压抑孩子？"},
+            {id:2,title:"2. 孩子不愿开口，住校后感觉和家长不亲",desc:"怎样和孩子沟通开口才不容易抵触？如何维持良好亲子亲密关系？"},
+            {id:3,title:"3. 住校适应、想家与独立自律",desc:"孩子住校生活适应情况，想家如何解决？住校是否提升学习效率，如何引导独立自律？"},
+            {id:4,title:"4. 激发学习主动性、学科提分",desc:"如何改变被动学习，提升孩子学习主动性？数理化等学科成绩如何有效提升？"},
+            {id:5,title:"5. 高中压力与鼓励的分寸，缓解家长焦虑",desc:"怎样鼓励孩子，不给孩子增添压力同时建立自信？家长如何调整心态，陪伴备考？"},
+            {id:6,title:"6. 青春期、尊重独立想法，减少亲子冲突",desc:"安全度过青春期，尊重孩子独立想法，减少亲子矛盾冲突，平稳度过高一转折期。"},
+            {id:7,title:"7. 选科方向规划",desc:"如何结合孩子成绩、兴趣，帮助孩子规划选科方向？"}
+        ];
+
+        async function fetchData(){
+            const res = await fetch("/api/message?action=get");
+            return await res.json();
+        }
+        async function submitMsg(tid){
+            const el = document.getElementById(`input_${tid}`);
+            const content = el.value.trim();
+            if(!content){alert("请填写留言内容");return;}
+            const d = new Date();
+            const timeStr = `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            await fetch("/api/message",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({action:"add",topicId:tid, content, time:timeStr})
+            })
+            el.value="";await render();
+        }
+        async function deleteMsg(topicId, idx){
+            if(!confirm("确定删除这条留言？")) return;
+            await fetch("/api/message",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({action:"delete",pwd:adminPwdCache, topicId, idx})
+            })
+            await render();
+        }
+        async function clearAllData(){
+            if(!confirm("确认清空全部留言？不可恢复！")) return;
+            await fetch("/api/message",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({action:"clear",pwd:adminPwdCache})
+            })
+            await render();
+        }
+        function loginAdmin(){
+            const input = document.getElementById("adminPwdInput").value.trim();
+            if(input !== ADMIN_PASSWORD){alert("密码错误");return;}
+            adminPwdCache = input; isAdmin = true;
+            document.getElementById("adminTip").innerHTML = `<span class="text-green-600">✅已进入管理员模式，可以删除留言</span>`;
+            render();
+        }
+        function logoutAdmin(){
+            isAdmin = false;adminPwdCache="";
+            document.getElementById("adminPwdInput").value = "";
+            document.getElementById("adminTip").innerHTML = `<span class="text-slate-400">登录后可以删除留言</span>`;
+            render();
+        }
+        function escapeHtml(str){
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+        function renderMsgs(list, topicId){
+            if(list.length === 0){
+                return `<div class="py-8 text-center text-sm text-slate-400">暂无留言，欢迎第一位分享你的想法 ✨</div>`;
+            }
+            let html = "";
+            list.forEach((item, idx)=>{
+                html += `
+                <div class="bg-bubbleBg rounded-xl p-4 bubble-shadow">
+                    <div class="text-sm text-slate-700 leading-relaxed">${escapeHtml(item.content)}</div>
+                    <div class="flex justify-between items-center mt-2">
+                        <span class="text-xs text-slate-400">${item.time}</span>
+                        ${isAdmin ? `<button onclick="deleteMsg(${topicId},${idx})" class="text-xs text-danger hover:underline"><i class="fa fa-trash-o"></i> 删除</button>` : ''}
+                    </div>
+                </div>`;
+            })
+            return html;
+        }
+        async function render(){
+            const wrap = document.getElementById("topicWrap");
+            wrap.innerHTML = "";
+            const allData = await fetchData();
+            for(const topic of topicList){
+                const msgs = allData[topic.id] || [];
+                const card = document.createElement("div");
+                card.className = "bg-white rounded-2xl card-shadow overflow-hidden";
+                card.innerHTML = `
+                    <div class="bg-primary text-white px-5 py-4">
+                        <h2 class="text-lg font-semibold">${topic.title}</h2>
+                    </div>
+                    <div class="px-5 py-5">
+                        <p class="text-sm text-slate-600 leading-relaxed mb-5">${topic.desc}</p>
+                        <div class="border border-slate-200 rounded-xl p-4 bg-softBlue mb-5">
+                            <textarea id="input_${topic.id}" class="w-full border-0 bg-transparent p-1 text-sm min-h-[85px] outline-none resize-y" placeholder="写下你的困惑、育儿经验，匿名分享……"></textarea>
+                            <div class="flex justify-end mt-3">
+                                <button onclick="submitMsg(${topic.id})" class="bg-primary hover:bg-primaryDark text-white px-5 py-2.5 rounded-lg text-sm transition">
+                                    <i class="fa fa-paper-plane-o mr-1"></i>匿名提交
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400 mb-3">💬共 ${msgs.length} 条匿名交流</div>
+                            <div class="space-y-3.5">${renderMsgs(msgs, topic.id)}</div>
+                        </div>
+                    </div>`;
+                wrap.appendChild(card);
+            }
+        }
+        window.onload = render;
+        setInterval(render,8000);
+    </script>
+</body>
+</html>
