@@ -64,8 +64,9 @@
     <script>
         let isAdmin = false;
         let adminPwdCache = "";
-        const ADMIN_PASSWORD = "123456"; //在这里改管理员密码
+        const ADMIN_PASSWORD = "123456";
 
+        // ==========7条议题，这里是核心，不会丢==========
         const topicList = [
             {id:1,title:"1. 手机与周末时间怎么管",desc:"手机到底该不该给孩子？回家、周日怎样安排手机，既能管控又不过度压抑孩子？"},
             {id:2,title:"2. 孩子不愿开口，住校后感觉和家长不亲",desc:"怎样和孩子沟通开口才不容易抵触？如何维持良好亲子亲密关系？"},
@@ -77,8 +78,14 @@
         ];
 
         async function fetchData(){
-            const res = await fetch("/api/message?action=get");
-            return await res.json();
+            try {
+                const res = await fetch("/api/message?action=get");
+                if(!res.ok) throw new Error("接口错误");
+                return await res.json();
+            }catch(e){
+                console.log("接口异常，使用空数据");
+                return {};
+            }
         }
         async function submitMsg(tid){
             const el = document.getElementById(`input_${tid}`);
